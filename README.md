@@ -72,6 +72,12 @@ Both survive `.odt` and `.docx` round trips, and bookmarks move with the text,
 so marks stay correct as the brief is edited. `tests/run_tests.py` checks this
 against a real LibreOffice rather than assuming it.
 
+**Marks survive Microsoft Word.** `tests/word_roundtrip.py` opens a marked
+`.docx` in Word through COM automation, has Word save it, and reopens the
+result: the bookmarks, the `ToaMarks` property and every page number come back
+unchanged, and Word reads both constructs itself. A brief can move between
+Writer and Word without losing what has been marked.
+
 Behaviour worth knowing:
 
 - Marking the same range twice does not create a second mark. Marking it again
@@ -93,9 +99,6 @@ Behaviour worth knowing:
   writes the table directly, because a missed authority in a filed table of
   authorities is worse than an empty one.
 - No settings yet: `passim` at five pages and the category list are fixed.
-- Not tested against Microsoft Word itself. Bookmarks and custom document
-  properties are both standard OOXML, and they survive LibreOffice's own
-  `.docx` round trip, but whether Word preserves them is untested.
 
 ## Tests
 
