@@ -33,7 +33,7 @@ writes the result into the document.
 ## Install
 
 Download the `.oxt` from
-[Releases](https://github.com/Jhark14/libreoffice-toa/releases), then
+[Releases](https://github.com/harkins-solutions/libreoffice-toa/releases), then
 **Tools > Extension Manager > Add**. Restart Writer. An **Authorities** menu
 appears.
 
