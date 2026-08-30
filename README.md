@@ -72,9 +72,10 @@ $ unopkg add -f dist/table-of-authorities.oxt
 |---|---|
 | 1. Select a citation in the text | — |
 | 2. Mark it, choosing a category | **Authorities > Mark Citation...** |
+| — undo a mistaken mark: put the cursor in it | **Authorities > Unmark Citation** |
 | 3. Repeat for every appearance, including short forms and `id.` cites | same |
 | 4. Put the cursor where the table belongs | — |
-| 5. Generate | **Authorities > Insert Table of Authorities** |
+| 5. Generate, or bring an existing table up to date | **Authorities > Insert or Update Table of Authorities** |
 
 **Authorities > Show Marked Citations** lists what is currently marked.
 
@@ -85,7 +86,9 @@ creating a second one. The dialog pre-fills the selected text, so this is a
 matter of correcting it before pressing Mark.
 
 Page numbers are read from the document's layout at the moment you generate,
-so regenerate after the pagination changes.
+so regenerate after the pagination changes. Regenerating rewrites the existing
+table rather than adding a second one, and keeps any formatting you applied to
+it: rows are added or removed as the list grows and shrinks.
 
 ## What the table looks like
 
@@ -127,6 +130,9 @@ Behaviour that follows from this, and is tested:
 - **The table shows the authority text you recorded**, not the current document
   text. That is what lets a short form group under its full citation. It also
   means editing the cited words does not change the entry — re-mark to update.
+- **Unmark works on the citation, not on the table.** The generated table
+  contains a copy of every authority; selecting one there and unmarking does
+  nothing, because the mark lives on the citation in your text.
 
 Anyone with the file can read the marks; see [SECURITY.md](SECURITY.md) if the
 document is going to opposing counsel.
@@ -158,6 +164,7 @@ Word without losing what has been marked. Word does not *generate* this table
   authority in a filed table of authorities is worse than no table at all.
 - No settings yet. `passim` at five pages and the category list are fixed.
 - No way to jump from a table entry back to the citation in the text.
+- No keyboard shortcut for marking, which is the action you repeat most.
 - Word's own TA fields are neither read nor written, so a table marked up in
   Word does not carry over.
 

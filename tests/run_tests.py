@@ -83,13 +83,23 @@ class Session:
             tuple(prop(k, v) for k, v in args.items()))
 
     def select(self, doc, needle, index=0):
+        """Select the index-th occurrence in the body text.
+
+        Once a table has been generated it contains a copy of every authority,
+        and findAll returns those too -- not in document order, so the first
+        hit may be the one inside the table. A user selects what they can see;
+        a test has to say which it means.
+        """
         d = doc.createSearchDescriptor()
         d.SearchString = needle
         d.SearchCaseSensitive = True
         found = doc.findAll(d)
-        if index >= found.getCount():
+        body = doc.getText()
+        in_body = [found.getByIndex(i) for i in range(found.getCount())
+                   if found.getByIndex(i).getText() == body]
+        if index >= len(in_body):
             return None
-        rng = found.getByIndex(index)
+        rng = in_body[index]
         doc.getCurrentController().select(rng)
         return rng
 
@@ -227,6 +237,128 @@ def test_deleting_the_text_drops_the_entry(s):
     doc.close(False)
 
 
+def test_regenerating_updates_one_table(s):
+    """Generating twice used to leave two tables disagreeing with each other."""
+    print("\ntest: generating the table twice")
+    doc = s.new_doc([[SMITH], [DOE]])
+    s.select(doc, SMITH)
+    s.dispatch(doc, "MarkCitation", Authority=SMITH, Category="Cases")
+    doc.getCurrentController().getViewCursor().gotoEnd(False)
+    s.dispatch(doc, "InsertTable")
+    check("one table after generating", doc.getTextTables().getCount(), 1)
+
+    # Mark another authority and regenerate, as anyone drafting would.
+    s.select(doc, DOE)
+    s.dispatch(doc, "MarkCitation", Authority=DOE, Category="Cases")
+    doc.getCurrentController().getViewCursor().gotoEnd(False)
+    s.dispatch(doc, "InsertTable")
+    check("still one table after regenerating", doc.getTextTables().getCount(), 1)
+
+    table = doc.getTextTables().getByIndex(0)
+    listed = [table.getCellByName(f"A{r}").getString()
+              for r in range(1, table.getRows().getCount() + 1)]
+    check("the new authority is in it", DOE in listed, True)
+    check("the first authority is still in it", SMITH in listed, True)
+    doc.close(False)
+
+
+def test_the_table_shrinks_as_well_as_grows(s):
+    print("\ntest: the table shrinks when an authority goes away")
+    doc = s.new_doc([[SMITH], [DOE]])
+    for authority in (SMITH, DOE):
+        s.select(doc, authority)
+        s.dispatch(doc, "MarkCitation", Authority=authority, Category="Cases")
+    doc.getCurrentController().getViewCursor().gotoEnd(False)
+    s.dispatch(doc, "InsertTable")
+    before = doc.getTextTables().getByIndex(0).getRows().getCount()
+
+    s.select(doc, DOE)
+    s.dispatch(doc, "UnmarkCitation")
+    doc.getCurrentController().getViewCursor().gotoEnd(False)
+    s.dispatch(doc, "InsertTable")
+    table = doc.getTextTables().getByIndex(0)
+    listed = [table.getCellByName(f"A{r}").getString()
+              for r in range(1, table.getRows().getCount() + 1)]
+    check("a row was removed", table.getRows().getCount() < before, True)
+    check("the unmarked authority is gone", DOE in listed, False)
+    check("the other one remains", SMITH in listed, True)
+    doc.close(False)
+
+
+def test_unmark_removes_the_mark_and_the_bookmark(s):
+    print("\ntest: unmarking a citation")
+    doc = s.new_doc([[SMITH], [DOE]])
+    for authority in (SMITH, DOE):
+        s.select(doc, authority)
+        s.dispatch(doc, "MarkCitation", Authority=authority, Category="Cases")
+    check("two marks to start", len(s.marks(doc)), 2)
+    bookmarks_before = doc.getBookmarks().getCount()
+
+    s.select(doc, SMITH)
+    s.dispatch(doc, "UnmarkCitation")
+    check("one mark left", len(s.marks(doc)), 1)
+    check("the bookmark went too", doc.getBookmarks().getCount(),
+          bookmarks_before - 1)
+    check("the right one survived",
+          [m["authority"] for m in s.marks(doc).values()], [DOE])
+    # The text itself must not be touched.
+    d = doc.createSearchDescriptor()
+    d.SearchString = SMITH
+    check("the citation text is still in the document",
+          doc.findAll(d).getCount(), 1)
+    doc.close(False)
+
+
+def test_unmark_with_the_cursor_inside_the_citation(s):
+    """A user puts the cursor in the citation; they do not select it exactly."""
+    print("\ntest: unmarking with only a cursor inside the text")
+    doc = s.new_doc([[SMITH]])
+    s.select(doc, SMITH)
+    s.dispatch(doc, "MarkCitation", Authority=SMITH, Category="Cases")
+
+    rng = s.select(doc, SMITH)
+    view = doc.getCurrentController().getViewCursor()
+    view.gotoRange(rng, False)
+    view.goRight(4, False)          # inside the marked text, nothing selected
+    s.dispatch(doc, "UnmarkCitation")
+    check("the mark is gone", len(s.marks(doc)), 0)
+    doc.close(False)
+
+
+def test_unmark_where_nothing_is_marked(s):
+    print("\ntest: unmarking where there is no mark")
+    doc = s.new_doc([[SMITH], [DOE]])
+    s.select(doc, SMITH)
+    s.dispatch(doc, "MarkCitation", Authority=SMITH, Category="Cases")
+    s.select(doc, DOE)              # never marked
+    s.dispatch(doc, "UnmarkCitation")
+    check("the other mark is untouched", len(s.marks(doc)), 1)
+    doc.close(False)
+
+
+def test_unmarking_from_inside_the_generated_table_does_nothing(s):
+    """Selecting an entry in the table is not the same as the citation."""
+    print("\ntest: unmark attempted from inside the generated table")
+    doc = s.new_doc([[SMITH]])
+    s.select(doc, SMITH)
+    s.dispatch(doc, "MarkCitation", Authority=SMITH, Category="Cases")
+    doc.getCurrentController().getViewCursor().gotoEnd(False)
+    s.dispatch(doc, "InsertTable")
+
+    d = doc.createSearchDescriptor()
+    d.SearchString = SMITH
+    found = doc.findAll(d)
+    body = doc.getText()
+    in_table = [found.getByIndex(i) for i in range(found.getCount())
+                if found.getByIndex(i).getText() != body]
+    check("the table holds a copy of the authority", len(in_table), 1)
+    if in_table:
+        doc.getCurrentController().select(in_table[0])
+        s.dispatch(doc, "UnmarkCitation")
+    check("the mark is untouched", len(s.marks(doc)), 1)
+    doc.close(False)
+
+
 def main():
     session = Session()
     try:
@@ -236,6 +368,12 @@ def main():
         test_table_contents(session)
         test_page_ranges(session)
         test_deleting_the_text_drops_the_entry(session)
+        test_regenerating_updates_one_table(session)
+        test_the_table_shrinks_as_well_as_grows(session)
+        test_unmark_removes_the_mark_and_the_bookmark(session)
+        test_unmark_with_the_cursor_inside_the_citation(session)
+        test_unmark_where_nothing_is_marked(session)
+        test_unmarking_from_inside_the_generated_table_does_nothing(session)
     finally:
         session.close()
 

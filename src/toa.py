@@ -33,6 +33,11 @@ BOOKMARK_PREFIX = "toa"
 CATEGORIES = ("Cases", "Statutes", "Rules", "Constitutional Provisions", "Other")
 PASSIM_AT = 5
 
+# The generated table is named so it can be found and rewritten. Without this
+# every regeneration added another table, and since page numbers move while a
+# brief is drafted, regenerating is the normal action rather than an edge case.
+TABLE_NAME = "TableOfAuthorities"
+
 
 # -- the mark store ---------------------------------------------------------
 
@@ -66,11 +71,22 @@ def _next_name(marks):
 # they are disjoint. Measured rather than assumed; see tests/test_overlap.py.
 
 def _disjoint(text, a, b):
+    # Ranges in different text objects -- the body versus a table cell, a
+    # header, a frame -- cannot overlap. compareRegion* does not reject them:
+    # it returns a number that means nothing, so this has to be checked first
+    # rather than left to the exception handler. The generated table contains
+    # copies of every authority, so this case arises the moment a table exists.
     try:
-        return (text.compareRegionEnds(a, b.getStart()) == 1
-                or text.compareRegionEnds(b, a.getStart()) == 1)
+        if not a.getText().equals(b.getText()):
+            return True
+    except AttributeError:
+        if a.getText() != b.getText():
+            return True
+    try:
+        comparer = a.getText()
+        return (comparer.compareRegionEnds(a, b.getStart()) == 1
+                or comparer.compareRegionEnds(b, a.getStart()) == 1)
     except Exception:
-        # Different text objects (a header, a frame) cannot overlap the body.
         return True
 
 
@@ -187,17 +203,30 @@ def collect(doc):
     return grouped
 
 
-def insert_table(doc):
-    grouped = collect(doc)
-    if not grouped:
-        return 0
-    text = doc.getText()
-    cursor = doc.getCurrentController().getViewCursor()
+def find_table(doc):
+    """The table this extension generated, if the document already has one."""
+    tables = doc.getTextTables()
+    return tables.getByName(TABLE_NAME) if tables.hasByName(TABLE_NAME) else None
 
-    rows = 1 + sum(1 + len(grouped[c]) for c in CATEGORIES if c in grouped)
-    table = doc.createInstance("com.sun.star.text.TextTable")
-    table.initialize(rows, 2)
-    text.insertTextContent(cursor, table, False)
+
+def _rows_needed(grouped):
+    return 1 + sum(1 + len(grouped[c]) for c in CATEGORIES if c in grouped)
+
+
+def _fill(table, grouped):
+    """Resize the table to fit and write every cell.
+
+    Rows are added or removed rather than the table being replaced, so
+    anything the author did to it -- borders, fonts, column widths -- survives
+    a regeneration.
+    """
+    needed = _rows_needed(grouped)
+    rows = table.getRows()
+    current = rows.getCount()
+    if current < needed:
+        rows.insertByIndex(current, needed - current)
+    elif current > needed:
+        rows.removeByIndex(needed, current - needed)
 
     table.getCellByName("A1").setString("TABLE OF AUTHORITIES")
     table.getCellByName("B1").setString("Page(s)")
@@ -206,12 +235,52 @@ def insert_table(doc):
         if category not in grouped:
             continue
         table.getCellByName(f"A{row}").setString(category.upper())
+        table.getCellByName(f"B{row}").setString("")
         row += 1
         for authority, label in grouped[category]:
             table.getCellByName(f"A{row}").setString(authority)
             table.getCellByName(f"B{row}").setString(label)
             row += 1
-    return rows
+    return needed
+
+
+def insert_table(doc):
+    """Write the table, or bring the existing one up to date.
+
+    Returns (rows, status) where status is 'inserted', 'updated' or 'empty'.
+    """
+    grouped = collect(doc)
+    table = find_table(doc)
+    if not grouped:
+        return 0, "empty"
+    if table is None:
+        table = doc.createInstance("com.sun.star.text.TextTable")
+        table.initialize(_rows_needed(grouped), 2)
+        doc.getText().insertTextContent(
+            doc.getCurrentController().getViewCursor(), table, False)
+        table.setName(TABLE_NAME)
+        status = "inserted"
+    else:
+        status = "updated"
+    return _fill(table, grouped), status
+
+
+def unmark_at(doc, text_range):
+    """Remove the mark covering this range. Returns what it was, or None.
+
+    Without this the only way out of a mistaken mark was Ctrl+Z at that exact
+    moment, or deleting a bookmark and hand-editing a document property.
+    """
+    name = existing_mark_at(doc, text_range)
+    if name is None:
+        return None
+    bookmarks = doc.getBookmarks()
+    if bookmarks.hasByName(name):
+        doc.getText().removeTextContent(bookmarks.getByName(name))
+    marks = read_marks(doc)
+    removed = marks.pop(name, None)
+    write_marks(doc, marks)
+    return removed
 
 
 # -- the dialog -------------------------------------------------------------
@@ -310,8 +379,10 @@ class Handler(unohelper.Base, XServiceInfo, XDispatchProvider, XDispatch,
         args = _args(properties)
         if url.Path == "MarkCitation":
             self._mark(doc, args)
+        elif url.Path == "UnmarkCitation":
+            self._unmark(doc, args)
         elif url.Path == "InsertTable":
-            insert_table(doc)
+            self._insert(doc, args)
         elif url.Path == "ListMarks":
             self._list(doc, args)
 
@@ -333,6 +404,35 @@ class Handler(unohelper.Base, XServiceInfo, XDispatchProvider, XDispatch,
         if status == "duplicate" and not args:
             _message(self.ctx, self.frame,
                      "That text is already marked as this authority.")
+
+    def _unmark(self, doc, args):
+        selection = doc.getCurrentController().getSelection()
+        if not selection.getCount():
+            return
+        removed = unmark_at(doc, selection.getByIndex(0))
+        if args:
+            return
+        if removed is None:
+            _message(self.ctx, self.frame,
+                     "Nothing is marked here. Put the cursor inside a marked"
+                     " citation, or select it, and try again.")
+        else:
+            _message(self.ctx, self.frame,
+                     f"Unmarked: {removed['authority']}\n\n"
+                     "Regenerate the table to remove it from the list.")
+
+    def _insert(self, doc, args):
+        rows, status = insert_table(doc)
+        if args:
+            return
+        if status == "empty":
+            _message(self.ctx, self.frame,
+                     "Nothing is marked yet, so there is no table to write."
+                     "\n\nSelect a citation and use Mark Citation first.")
+        elif status == "updated":
+            _message(self.ctx, self.frame,
+                     "The existing table of authorities has been brought up to"
+                     " date.")
 
     def _list(self, doc, args):
         grouped = collect(doc)
