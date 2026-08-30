@@ -1,0 +1,3 @@
+Mark citations in a brief and generate a categorised table of authorities with
+page numbers. Cases, statutes, rules and constitutional provisions are listed
+separately, alphabetically, with page ranges and passim.

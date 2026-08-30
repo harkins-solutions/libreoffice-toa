@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/description/2006"
+             xmlns:xlink="http://www.w3.org/1999/xlink">
+  <identifier value="org.libreoffice.toa"/>
+  <version value="0.1.0"/>
+  <display-name>
+    <name lang="en">Table of Authorities</name>
+  </display-name>
+  <extension-description>
+    <src lang="en" xlink:href="description-en.txt"/>
+  </extension-description>
+  <dependencies>
+    <OpenOffice.org-minimal-version value="4.1" d:name="LibreOffice 4.1"
+        xmlns:d="http://openoffice.org/extensions/description/2006"/>
+  </dependencies>
+</description>

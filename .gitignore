@@ -1,0 +1,4 @@
+dist/*.oxt
+__pycache__/
+*.pyc
+tests/out/
