@@ -1,0 +1,47 @@
+name: A citation is categorised wrongly
+description: The category guess is wrong for a kind of authority.
+labels: ["categories"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        When you mark a citation the dialog pre-selects a category, guessed
+        from the text. You can always change it before marking — this is for
+        when the guess is wrong often enough to be worth fixing.
+
+        **Invented citations only.** The guess works on the shape of the
+        citation, never its content, so a made-up one in the same form
+        reproduces the problem exactly.
+
+  - type: input
+    id: citation
+    attributes:
+      label: The citation, in the form you write it
+      placeholder: "Fla. R. Jud. Admin. 2.516(b)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: guessed
+    attributes:
+      label: What it guessed
+      options: ["Cases", "Statutes", "Rules", "Constitutional Provisions", "Other"]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: correct
+    attributes:
+      label: What it should be
+      options: ["Cases", "Statutes", "Rules", "Constitutional Provisions", "Other"]
+    validations:
+      required: true
+
+  - type: input
+    id: jurisdiction
+    attributes:
+      label: Jurisdiction
+      description: >-
+        Citation forms differ by state and court, and a rule that fixes one
+        can break another. Knowing where it comes from decides the fix.
+      placeholder: "Florida state courts"

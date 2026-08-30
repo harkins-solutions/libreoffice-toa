@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build and test before publishing: an .oxt that installs but does not
+      # work is worse than no release, because it is what people try first.
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice-writer python3-uno
+      - name: Test
+        run: tests/run.sh
+
+      - name: Check the version in description.xml matches the tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          IN_XML=$(grep -oP '(?<=<version value=")[^"]+' src/description.xml)
+          echo "tag $TAG, description.xml $IN_XML"
+          [ "$TAG" = "$IN_XML" ] || {
+            echo "The tag and description.xml disagree. LibreOffice shows the"
+            echo "description.xml version in Extension Manager, so a mismatch"
+            echo "means users cannot tell what they have installed."
+            exit 1
+          }
+
+      - name: Build
+        run: python3 build.py
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/table-of-authorities.oxt
+          generate_release_notes: true

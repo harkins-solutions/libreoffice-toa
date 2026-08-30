@@ -1,0 +1,39 @@
+name: Something is missing
+description: A table of authorities needs something this does not do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Known gaps, so you can tell whether yours is already on the list:
+
+        - the table is a Writer table, not tab stops with dot leaders
+        - marking is manual; nothing scans for citations yet
+        - `passim` is fixed at five pages, and the category list is fixed
+        - no way to jump from a table entry to the citation in the text
+
+        Saying which court or which brief the need comes from is more useful
+        than a general description — a table of authorities is governed by
+        local rules, and they disagree with each other.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need it to do
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do about it today
+      description: A workaround, another tool, or doing it by hand.
+
+  - type: input
+    id: rule
+    attributes:
+      label: Is this required by a rule
+      description: >-
+        If a court rule or a judge's standing order requires it, quote or
+        link it — a requirement someone can read settles the design.
+      placeholder: "e.g. Fla. R. App. P. 9.210(b)"

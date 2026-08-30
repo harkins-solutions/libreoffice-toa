@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Something went wrong with a real client's brief
+    url: mailto:Joshua@HarkinsSolutionsSystemsGroup.com
+    about: >-
+      Do not open a public issue. Email instead — you do not need a GitHub
+      account, and nothing from a client's file belongs in a tracker that is
+      indexed, forked and cached forever.
+  - name: Report a vulnerability privately
+    url: https://github.com/harkins-solutions/libreoffice-toa/security/advisories/new
+    about: Opens a report only the maintainers can read.

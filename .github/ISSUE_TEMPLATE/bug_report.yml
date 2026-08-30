@@ -1,0 +1,83 @@
+name: Something is broken
+description: The extension did the wrong thing, or stopped.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This tracker is public and permanent.** Anything pasted here is
+        indexed, forked and cached; deleting it later does not undo that.
+
+        This extension runs inside your copy of Writer and sends nothing
+        anywhere, so nothing has reached us unless you put it here. Please
+        keep it that way: **replace party names, case numbers and citations
+        with invented ones.**
+
+        Made-up citations work perfectly well for reproducing a bug. The
+        extension groups and sorts on the text you give it and never looks
+        anything up, so `Smith v. Jones, 260 So. 3d 323` behaves exactly like
+        the real citation it stands in for.
+
+        If a document is genuinely needed to reproduce it, say so and we will
+        work out how to get there without the original.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what the extension did instead.
+      placeholder: |
+        1. Selected "Smith v. Jones, 260 So. 3d 323" on page 4
+        2. Authorities > Mark Citation, chose Cases
+        3. Authorities > Insert Table of Authorities
+        4. The entry showed page 1 instead of page 4
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: input
+    id: lo-version
+    attributes:
+      label: LibreOffice version
+      description: Help > About LibreOffice
+      placeholder: "24.8.4.2 (X86_64), Linux"
+    validations:
+      required: true
+
+  - type: input
+    id: ext-version
+    attributes:
+      label: Extension version
+      description: Tools > Extension Manager, next to Table of Authorities
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: format
+    attributes:
+      label: What format is the document
+      options:
+        - .odt
+        - .docx
+        - .doc
+        - a new unsaved document
+        - something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: marks
+    attributes:
+      label: What Show Marked Citations reports
+      description: >-
+        Authorities > Show Marked Citations, with names replaced. This says
+        what the extension believes is marked, which is usually where a wrong
+        table comes from.
+      render: text
